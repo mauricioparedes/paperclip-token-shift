@@ -20,6 +20,8 @@ export const instanceConfigSchema = {
   type: "object",
   properties: {
     enabled: { type: "boolean", default: false, title: "Enabled", description: "Master switch for this company." },
+    agentsWorkEnd: { type: "string", default: "09:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Agent Work Day End Time" },
+    agentsWorkStart: { type: "string", default: "20:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Agent Work Day Start Time" },
     timezone: {
       type: "string",
       default: "America/Santiago",
@@ -27,8 +29,6 @@ export const instanceConfigSchema = {
       description: "Select the timezone used to evaluate agent work hours and quota resets.",
       enum: timezones,
     },
-    agentsWorkEnd: { type: "string", default: "09:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Agent Work Day End Time" },
-    agentsWorkStart: { type: "string", default: "20:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Agent Work Day Start Time" },
     pauseLeadMinutes: { type: "integer", default: 10, minimum: 0, maximum: 120, title: "Stop this many minutes before a quota reset" },
     sessionWindowHours: { type: "number", default: 5, minimum: 1, maximum: 24, title: "Claude session window length (hours)" },
     fallbackResetAt: { type: "string", default: "", pattern: "^(\\d{1,2}:\\d{2})?$", title: "Fallback reset time when /usage is unavailable (HH:MM, empty = none)" },
