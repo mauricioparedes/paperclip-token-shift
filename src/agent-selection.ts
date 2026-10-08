@@ -10,5 +10,4 @@ export interface AgentSelectionData {
   companyId: string;
   agents: AgentOption[];
   agentIds: string[];
-  source: "selection" | "config";
 }

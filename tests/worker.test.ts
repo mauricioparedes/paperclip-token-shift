@@ -36,7 +36,7 @@ function agent(id: string, status: Agent["status"]): Agent {
   } as unknown as Agent;
 }
 
-async function setup(opts: { usage?: string | Error; config?: Record<string, unknown>; agents?: Agent[] } = {}) {
+async function setup(opts: { usage?: string | Error; config?: Record<string, unknown>; agents?: Agent[]; selectedIds?: string[] | null } = {}) {
   let clock = fromLocal(TZ, 2026, 10, 7, 21, 0);
   let usageCalls = 0;
   const plugin = buildPlugin({
@@ -49,13 +49,16 @@ async function setup(opts: { usage?: string | Error; config?: Record<string, unk
   });
   const harness = createTestHarness({
     manifest,
-    config: { enabled: true, timezone: TZ, agentIds: ["a1", "a2", "a3"], ...opts.config },
+    config: { enabled: true, timezone: TZ, ...opts.config },
   });
   harness.seed({
     companies: [{ id: COMPANY, name: "C2C" } as never],
     agents: opts.agents ?? [agent("a1", "idle"), agent("a2", "paused"), agent("a3", "running")],
   });
   await plugin.definition.setup(harness.ctx);
+  if (opts.selectedIds !== null) {
+    await harness.ctx.state.set({ scopeKind: "company", scopeId: COMPANY, stateKey: "selected-agent-ids" }, opts.selectedIds ?? ["a1", "a2", "a3"]);
+  }
   const status = async (id: string) => (await harness.ctx.agents.get(id, COMPANY))?.status;
   return {
     harness,
@@ -66,8 +69,8 @@ async function setup(opts: { usage?: string | Error; config?: Record<string, unk
 }
 
 describe("token-shift worker", () => {
-  it("lists agents by name and preserves the configured selection initially", async () => {
-    const t = await setup({ agents: [
+  it("lists agents by name with no default selection", async () => {
+    const t = await setup({ selectedIds: null, config: { agentIds: ["a1"] }, agents: [
       { ...agent("a1", "idle"), name: "Zoe" },
       { ...agent("a2", "paused"), name: "Alice" },
       { ...agent("foreign", "idle"), companyId: "co_2" },
@@ -75,8 +78,10 @@ describe("token-shift worker", () => {
     const data = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: COMPANY });
     expect(data.companyId).toBe(COMPANY);
     expect(data.agents.map((a) => [a.id, a.name])).toEqual([["a2", "Alice"], ["a1", "Zoe"]]);
-    expect(data.agentIds).toEqual(["a1", "a2", "a3"]);
-    expect(data.source).toBe("config");
+    expect(data.agentIds).toEqual([]);
+    t.setClock(10, 0);
+    await t.harness.runJob("reconcile");
+    expect(await t.status("a1")).toBe("idle");
   });
 
   it("paginates agent options beyond the first hundred", async () => {
@@ -86,7 +91,7 @@ describe("token-shift worker", () => {
     expect(data.agents.map((a) => a.id)).toContain("agent-104");
   });
 
-  it("uses saved IDs instead of names and configured IDs when reconciling", async () => {
+  it("uses saved IDs instead of names when reconciling", async () => {
     const t = await setup({ agents: [
       { ...agent("a1", "idle"), name: "Same name" },
       { ...agent("a3", "idle"), name: "Same name" },
@@ -102,10 +107,9 @@ describe("token-shift worker", () => {
     expect(await t.status("a3")).toBe("idle");
     const data = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: COMPANY });
     expect(data.agentIds).toEqual(["a3"]);
-    expect(data.source).toBe("selection");
   });
 
-  it("honors an explicitly empty selection instead of falling back to configured IDs", async () => {
+  it("honors an explicitly empty selection", async () => {
     const t = await setup();
     await t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds: [] });
     t.setClock(10, 0);
@@ -119,7 +123,7 @@ describe("token-shift worker", () => {
     const t = await setup();
     await t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds: [] });
     const other = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: "co_2" });
-    expect(other.source).toBe("config");
+    expect(other.agentIds).toEqual([]);
     expect(other.agents).toEqual([]);
   });
 
@@ -132,7 +136,7 @@ describe("token-shift worker", () => {
       await expect(t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds: [id] })).rejects.toThrow("unavailable agent");
     }
     const data = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: COMPANY });
-    expect(data.source).toBe("config");
+    expect(data.agentIds).toEqual(["a1", "a2", "a3"]);
     expect(data.agents.filter((a) => !a.selectable).map((a) => a.id).sort()).toEqual(["pending", "terminated"]);
   });
 

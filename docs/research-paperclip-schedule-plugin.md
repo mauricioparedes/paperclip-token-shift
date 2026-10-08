@@ -51,10 +51,11 @@ The plugin does not manage prompts or projects, nor create new agents. It only d
 | `agentsWorkEnd` | `09:00` | End of the agents' workday; agents pause |
 | `pauseLeadMinutes` | `10` | Avoids starting/running close to the cutoff |
 | `usagePollMinutes` | `15` | How often `/usage` is queried; not worth doing on every reconciliation |
-| `agentIds` | `["..."]` | Agents to control |
 | `enabled` | `true` | Global per-company switch |
 | `fallbackResetAt` | `05:30` | Fallback if `/usage` does not return a usable cutoff |
 | `mode` | `claude-usage` / `manual-fallback` | Effective source of the next cutoff |
+
+Agents are selected by name in **Company settings → Token Shift Agents**. Their IDs are persisted in company-scoped plugin state.
 
 The plugin should persist `nextResetAt` as a UTC instant, along with `usageCheckedAt`, the source (`/usage`, limit error or manual fallback) and a parser version/fingerprint. The UI should show both the computed local time and the age of the last reading.
 

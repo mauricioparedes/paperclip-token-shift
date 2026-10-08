@@ -6,7 +6,7 @@ import { fromLocal, nextLocalOccurrence, toLocalParts } from "../src/time.js";
 const TZ = "America/Santiago";
 
 function config(overrides: Record<string, unknown> = {}): TokenShiftConfig {
-  const parsed = parseConfig({ enabled: true, agentIds: ["a1"], fallbackResetAt: "05:30", ...overrides });
+  const parsed = parseConfig({ enabled: true, fallbackResetAt: "05:30", ...overrides });
   if (!parsed.ok) throw new Error(parsed.errors.join(", "));
   return parsed.config;
 }
@@ -145,15 +145,15 @@ describe("parseConfig", () => {
     });
   });
 
-  it("preserves saved operator workday settings with reversed agent boundaries", () => {
+  it("ignores removed operator workday settings", () => {
     expect(parseConfig({ workStart: "08:30", workEnd: "19:15" })).toMatchObject({
       ok: true,
-      config: { agentsWorkStart: { hour: 19, minute: 15 }, agentsWorkEnd: { hour: 8, minute: 30 } },
+      config: { agentsWorkStart: { hour: 20, minute: 0 }, agentsWorkEnd: { hour: 9, minute: 0 } },
     });
   });
 
-  it("prefers agent workday settings over legacy keys", () => {
-    expect(parseConfig({ agentsWorkStart: "06:00", agentsWorkEnd: "22:00", workStart: "08:30", workEnd: "19:15" })).toMatchObject({
+  it("uses explicit agent workday settings", () => {
+    expect(parseConfig({ agentsWorkStart: "06:00", agentsWorkEnd: "22:00" })).toMatchObject({
       ok: true,
       config: { agentsWorkStart: { hour: 6, minute: 0 }, agentsWorkEnd: { hour: 22, minute: 0 } },
     });
@@ -179,9 +179,9 @@ describe("parseConfig", () => {
     if (!r.ok) expect(r.errors).toHaveLength(3);
   });
 
-  it("dedupes agent ids and defaults to disabled", () => {
-    const r = parseConfig({ agentIds: ["a", " a ", "", 3, "b"] });
-    expect(r.ok && r.config.agentIds).toEqual(["a", "b"]);
+  it("ignores removed agent ID configuration and defaults to disabled", () => {
+    const r = parseConfig({ agentIds: ["a", "b"] });
+    expect(r.ok && r.config).not.toHaveProperty("agentIds");
     expect(r.ok && r.config.enabled).toBe(false);
   });
 });

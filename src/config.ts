@@ -9,7 +9,6 @@ export interface TokenShiftConfig {
   agentsWorkStart: Hm;
   pauseLeadMinutes: number;
   sessionWindowHours: number;
-  agentIds: string[];
   fallbackResetAt: Hm | null;
   usagePollMinutes: number;
   usageMaxAgeMinutes: number;
@@ -32,11 +31,6 @@ export const instanceConfigSchema = {
     agentsWorkStart: { type: "string", default: "20:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Agent Work Day Start Time" },
     pauseLeadMinutes: { type: "integer", default: 10, minimum: 0, maximum: 120, title: "Stop this many minutes before a quota reset" },
     sessionWindowHours: { type: "number", default: 5, minimum: 1, maximum: 24, title: "Claude session window length (hours)" },
-    agentIds: {
-      type: "array", items: { type: "string" }, default: [], title: "Agent IDs (legacy configuration)",
-      description: "Select agents by name in company settings > Token Shift Agents. These IDs are used until a selection is saved there.",
-      "x-paperclip-advanced": true,
-    },
     fallbackResetAt: { type: "string", default: "", pattern: "^(\\d{1,2}:\\d{2})?$", title: "Fallback reset time when /usage is unavailable (HH:MM, empty = none)" },
     usagePollMinutes: { type: "integer", default: 15, minimum: 5, maximum: 240, title: "Minutes between /usage reads" },
     usageMaxAgeMinutes: { type: "integer", default: 60, minimum: 10, maximum: 720, title: "Treat a /usage reading as stale after (minutes)" },
@@ -55,9 +49,8 @@ export function parseConfig(raw: Record<string, unknown>): ConfigResult {
   const timezone = str("timezone", "America/Santiago");
   if (!isValidTimeZone(timezone)) errors.push(`timezone "${timezone}" is not a valid IANA zone`);
 
-  // Preserve saved schedules using the former operator workday keys.
-  const agentsWorkEnd = parseHm(str("agentsWorkEnd", str("workStart", "09:00")));
-  const agentsWorkStart = parseHm(str("agentsWorkStart", str("workEnd", "20:00")));
+  const agentsWorkEnd = parseHm(str("agentsWorkEnd", "09:00"));
+  const agentsWorkStart = parseHm(str("agentsWorkStart", "20:00"));
   if (!agentsWorkEnd) errors.push("agentsWorkEnd must be HH:MM");
   if (!agentsWorkStart) errors.push("agentsWorkStart must be HH:MM");
   if (agentsWorkEnd && agentsWorkStart && agentsWorkEnd.hour * 60 + agentsWorkEnd.minute === agentsWorkStart.hour * 60 + agentsWorkStart.minute) {
@@ -67,10 +60,6 @@ export function parseConfig(raw: Record<string, unknown>): ConfigResult {
   const fallbackRaw = str("fallbackResetAt", "");
   const fallbackResetAt = fallbackRaw === "" ? null : parseHm(fallbackRaw);
   if (fallbackRaw !== "" && !fallbackResetAt) errors.push("fallbackResetAt must be HH:MM or empty");
-
-  const agentIds = Array.isArray(raw.agentIds)
-    ? [...new Set(raw.agentIds.filter((v): v is string => typeof v === "string" && v.trim() !== "").map((v) => v.trim()))]
-    : [];
 
   if (errors.length > 0) return { ok: false, errors };
   return {
@@ -82,7 +71,6 @@ export function parseConfig(raw: Record<string, unknown>): ConfigResult {
       agentsWorkStart: agentsWorkStart!,
       pauseLeadMinutes: Math.max(0, num("pauseLeadMinutes", 10)),
       sessionWindowHours: Math.max(1, num("sessionWindowHours", 5)),
-      agentIds,
       fallbackResetAt,
       usagePollMinutes: Math.max(5, num("usagePollMinutes", 15)),
       usageMaxAgeMinutes: Math.max(10, num("usageMaxAgeMinutes", 60)),

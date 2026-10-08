@@ -7,7 +7,7 @@ import type { AgentSelectionData } from "../src/agent-selection.js";
 afterEach(cleanup);
 
 const data: AgentSelectionData = {
-  companyId: "co_1", agentIds: ["a1"], source: "config",
+  companyId: "co_1", agentIds: ["a1"],
   agents: [
     { id: "a1", name: "Alice", role: "engineer", status: "idle", selectable: true },
     { id: "a2", name: "Bob", role: "designer", status: "paused", selectable: true },
@@ -17,7 +17,7 @@ const data: AgentSelectionData = {
 
 describe("agent name selection UI", () => {
   it("searches by name while preserving hidden selections and saves IDs", async () => {
-    const save = vi.fn(async (agentIds: string[]) => ({ ...data, agentIds, source: "selection" as const }));
+    const save = vi.fn(async (agentIds: string[]) => ({ ...data, agentIds }));
     render(<AgentSelectionForm data={data} refresh={vi.fn()} save={save} />);
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "bOB" } });
     expect(screen.queryByText("Alice")).toBeNull();

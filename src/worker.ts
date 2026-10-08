@@ -49,9 +49,8 @@ export function buildPlugin(deps: WorkerDeps) {
     return value === null || value === undefined ? fallback : (value as T);
   }
 
-  async function selectedAgentIds(companyId: string, configuredIds: string[]): Promise<string[]> {
-    // An explicitly empty selection must override any legacy configured IDs.
-    return readState<string[]>(companyId, "selected-agent-ids", configuredIds);
+  async function selectedAgentIds(companyId: string): Promise<string[]> {
+    return readState<string[]>(companyId, "selected-agent-ids", []);
   }
 
   async function agentSelection(companyId: string): Promise<AgentSelectionData> {
@@ -68,13 +67,10 @@ export function buildPlugin(deps: WorkerDeps) {
       if (page.length < 100) break;
     }
     agents.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-    const parsed = parseConfig(await ctx.config.get(companyId));
-    const saved = await readState<string[] | null>(companyId, "selected-agent-ids", null);
     return {
       companyId,
       agents,
-      agentIds: saved ?? (parsed.ok ? parsed.config.agentIds : []),
-      source: saved === null ? "config" : "selection",
+      agentIds: await selectedAgentIds(companyId),
     };
   }
 
@@ -153,7 +149,7 @@ export function buildPlugin(deps: WorkerDeps) {
     const managed = await readState<ManagedState>(companyId, "managed", {});
     let managedChanged = false;
 
-    for (const agentId of await selectedAgentIds(companyId, config.agentIds)) {
+    for (const agentId of await selectedAgentIds(companyId)) {
       try {
         const agent = await ctx.agents.get(agentId, companyId);
         if (!agent) {
@@ -278,7 +274,7 @@ export function buildPlugin(deps: WorkerDeps) {
           throw new Error("Selection contains an unavailable agent or an agent outside this company. Refresh the list and try again.");
         }
         await ctx.state.set(companyKey(companyId, "selected-agent-ids"), ids);
-        return { ...current, agentIds: ids, source: "selection" as const };
+        return { ...current, agentIds: ids };
       });
 
       // Shows what the plugin would do right now without pausing or resuming anything.
@@ -293,7 +289,6 @@ export function buildPlugin(deps: WorkerDeps) {
       const parsed = parseConfig(config);
       if (!parsed.ok) return { ok: false, errors: parsed.errors };
       const warnings: string[] = [];
-      if (parsed.config.enabled && parsed.config.agentIds.length === 0) warnings.push("select agents in company settings > Token Shift Agents if no selection has been saved yet");
       if (!parsed.config.fallbackResetAt) warnings.push("no fallbackResetAt: agents stay paused whenever /usage cannot be read");
       return { ok: true, warnings };
     },

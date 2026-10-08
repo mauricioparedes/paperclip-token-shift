@@ -46,7 +46,6 @@ The parser (`src/usage.ts`) looks for the `Current session` section and its `Res
 | `agentsWorkEnd` | `09:00` | Agent Work Day End Time; agents pause at this time |
 | `pauseLeadMinutes` | `10` | Margin before the reset |
 | `sessionWindowHours` | `5` | Length of the Claude session window |
-| `agentIds` | `[]` | Legacy fallback until a selection is saved in Token Shift Agents |
 | `fallbackResetAt` | empty | Fallback reset time if `/usage` fails |
 | `usagePollMinutes` | `15` | How often `/usage` is read |
 | `usageMaxAgeMinutes` | `60` | Maximum age of a valid reading |
@@ -63,9 +62,9 @@ The parser (`src/usage.ts`) looks for the `Current session` section and its `Res
 
 Open **Company settings → Token Shift Agents** to search agents by name, check the agents to control, and click **Save agent selection**. Names are displayed but stable IDs are saved, so renaming an agent does not change the selection. Duplicate names show IDs to distinguish them. Terminated agents and agents awaiting approval cannot be added. Unavailable saved agents can be removed.
 
-The saved selection is scoped to the company and takes precedence over `agentIds` in the generated plugin configuration form. Saving an empty selection controls no agents. Saving changes the selection for the next reconciliation; it does not immediately pause or resume agents. Other settings, including timezone and agent workday times, remain in Paperclip's generated plugin configuration form. The legacy `agentIds` field is under **Advanced options**.
+The saved selection is scoped to the company. No agents are controlled until a selection is saved. Saving an empty selection controls no agents. Saving changes the selection for the next reconciliation; it does not immediately pause or resume agents. Other settings, including timezone and agent workday times, remain in Paperclip's generated plugin configuration form.
 
-Existing configurations remain readable: legacy `workStart` maps to `agentsWorkEnd`, and legacy `workEnd` maps to `agentsWorkStart`. Explicit new keys take precedence. Existing decision reason codes remain stable: `work_hours` now describes time outside the agents' workday, and `window_overlaps_workday` describes a quota window extending past `agentsWorkEnd`.
+`work_hours` describes time outside the agents' workday, and `window_overlaps_workday` describes a quota window extending past `agentsWorkEnd`.
 
 ## Development
 
