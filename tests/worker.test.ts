@@ -149,7 +149,35 @@ describe("token-shift worker", () => {
     await expect(t.harness.performAction("save-agent-selection", { agentIds: [] })).rejects.toThrow("companyId is required");
   });
 
-  it("pauses outside agent work hours and resumes only the agents it paused", async () => {
+  it("resumes a selected already-paused agent exactly at the start time", async () => {
+    const t = await setup({ selectedIds: null, agents: [agent("a1", "paused"), agent("a2", "paused")] });
+    await t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds: ["a1"] });
+    t.setClock(19, 59);
+    await t.harness.runJob("reconcile");
+    expect(await t.status("a1")).toBe("paused");
+    t.setClock(20, 0);
+    await t.harness.runJob("reconcile");
+    expect(await t.status("a1")).toBe("idle");
+    expect(await t.status("a2")).toBe("paused");
+  });
+
+  it("previews resuming an already-paused selected agent without changing it", async () => {
+    const t = await setup({ agents: [agent("a1", "paused")], selectedIds: ["a1"] });
+    const result = await t.harness.performAction<{ agents: Array<{ agentId: string; action: string }> }>("preview", { companyId: COMPANY });
+    expect(result.agents).toEqual([{ agentId: "a1", action: "resumed" }]);
+    expect(await t.status("a1")).toBe("paused");
+    expect(t.harness.activity).toEqual([]);
+  });
+
+  it("keeps selected paused agents paused when quota is unavailable", async () => {
+    const t = await setup({ agents: [agent("a1", "paused")], selectedIds: ["a1"], usage: new Error("usage unavailable") });
+    await t.harness.runJob("reconcile");
+    expect(await t.status("a1")).toBe("paused");
+    const state = await t.harness.getData<{ lastDecision: { decision: { reason: string } } }>("status", { companyId: COMPANY });
+    expect(state.lastDecision.decision.reason).toBe("quota_unknown");
+  });
+
+  it("pauses outside agent work hours and resumes selected paused agents", async () => {
     const t = await setup();
     t.setClock(10, 0);
     await t.harness.runJob("reconcile");
@@ -160,7 +188,7 @@ describe("token-shift worker", () => {
     await t.harness.runJob("reconcile");
     expect(await t.status("a1")).toBe("idle");
     expect(await t.status("a3")).toBe("idle");
-    expect(await t.status("a2")).toBe("paused"); // paused by the operator, left alone
+    expect(await t.status("a2")).toBe("idle");
     expect(t.harness.activity.map((a) => a.message)).toContain("Token Shift resumed Agent a1: no window open; a new one would reset by the end of the agents' workday");
   });
 

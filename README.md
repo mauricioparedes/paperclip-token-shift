@@ -22,8 +22,8 @@ With a reset at 05:30 and a 10-minute margin: it runs from 20:00 to 05:20 and st
 ## Agent behavior
 
 - It only touches the selected agents. It never pauses every agent in a company.
-- It only resumes agents that **it** paused (`managed` state per company). An agent you paused manually stays paused.
-- If you manually resume an agent paused by the plugin, the plugin stops treating it as its own. But if the rule says "pause", it will pause it again on the next minute: the schedule rule wins.
+- Selected agents resume during their workday when quota permits, including agents that were already paused or were paused manually. Unselected agents are left alone. Remove an agent from the selection to keep a manual pause in effect.
+- If you manually resume an agent outside the allowed window, the plugin pauses it again on the next reconciliation: the schedule rule wins.
 - Pausing does not stop a run in progress. To guarantee the cutoff, set the agent's `timeoutSec` below `pauseLeadMinutes`.
 - Every pause and resume is recorded in the Paperclip activity log.
 - With `enabled: false` it does nothing (it also does not resume what it had paused).
@@ -60,7 +60,7 @@ The parser (`src/usage.ts`) looks for the `Current session` section and its `Res
 - `preview` (action): computes the decision and what it would do with each agent, without touching them.
 - `reconcile-now` (action): applies the decision now; with `refreshUsage: true` it re-reads `/usage`.
 
-Open **Token Shift Agents** from the company sidebar or **Company settings → Token Shift Agents** to search agents by name, check the agents to control, and click **Save agent selection**. The sidebar link opens the settings for the active company. Names are displayed but stable IDs are saved, so renaming an agent does not change the selection. Duplicate names show IDs to distinguish them. Terminated agents and agents awaiting approval cannot be added. Unavailable saved agents can be removed.
+Open **Company settings → Token Shift Agents** to search agents by name, check the agents to control, and click **Save agent selection**. Names are displayed but stable IDs are saved, so renaming an agent does not change the selection. Duplicate names show IDs to distinguish them. Terminated agents and agents awaiting approval cannot be added. Unavailable saved agents can be removed.
 
 The saved selection is scoped to the company. No agents are controlled until a selection is saved. Saving an empty selection controls no agents. Saving changes the selection for the next reconciliation; it does not immediately pause or resume agents. Other settings, including timezone and agent workday times, remain in Paperclip's generated plugin configuration form.
 

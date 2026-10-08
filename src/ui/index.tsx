@@ -1,13 +1,6 @@
 import { useEffect, useState } from "react";
-import { useHostContext, useHostNavigation, usePluginAction, usePluginData, type PluginCompanySettingsPageProps } from "@paperclipai/plugin-sdk/ui";
+import { usePluginAction, usePluginData, type PluginCompanySettingsPageProps } from "@paperclipai/plugin-sdk/ui";
 import type { AgentSelectionData } from "../agent-selection.js";
-
-export function AgentSettingsLink() {
-  const { companyId } = useHostContext();
-  const navigation = useHostNavigation();
-  if (!companyId) return null;
-  return <a {...navigation.linkProps("../../token-shift-agents")}>Token Shift Agents</a>;
-}
 
 export function AgentSelectionPage({ context }: PluginCompanySettingsPageProps) {
   if (!context.companyId) return <p>Select a company to choose its agents.</p>;
@@ -76,6 +69,7 @@ export function AgentSelectionForm({ data, refresh, save }: FormProps) {
     <div>
       <h2>Token Shift Agents</h2>
       <p>Choose the agents that follow your Agent Work Day schedule. Saving an empty selection stops managing agents.</p>
+      <p>Selected agents resume during work hours when quota permits, including agents paused manually. Remove an agent from the selection to keep it paused manually.</p>
     </div>
     <label style={{ display: "grid", gap: 6 }}>
       Search agents by name

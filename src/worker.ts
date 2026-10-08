@@ -164,7 +164,7 @@ export function buildPlugin(deps: WorkerDeps) {
 
         if (!decision.run) {
           if (agent.status === "paused") {
-            result.agents.push({ agentId, action: "unchanged", note: ours ? "paused by token-shift" : "paused by someone else" });
+            result.agents.push({ agentId, action: "unchanged", note: ours ? "paused by token-shift" : "already paused" });
             continue;
           }
           if (!opts.dryRun) {
@@ -183,23 +183,21 @@ export function buildPlugin(deps: WorkerDeps) {
           continue;
         }
 
-        if (!ours) {
-          result.agents.push({ agentId, action: "unchanged", note: agent.status === "paused" ? "paused by someone else; left alone" : undefined });
-          continue;
-        }
         if (agent.status !== "paused") {
-          // Someone resumed it by hand; it is no longer ours to manage.
-          if (!opts.dryRun) {
+          // Clear stale pause bookkeeping when a selected agent is already active.
+          if (ours && !opts.dryRun) {
             delete managed[agentId];
             managedChanged = true;
           }
-          result.agents.push({ agentId, action: "unchanged", note: "already resumed manually" });
+          result.agents.push({ agentId, action: "unchanged", note: ours ? "already resumed manually" : undefined });
           continue;
         }
         if (!opts.dryRun) {
           await ctx.agents.resume(agentId, companyId);
-          delete managed[agentId];
-          managedChanged = true;
+          if (ours) {
+            delete managed[agentId];
+            managedChanged = true;
+          }
           await ctx.activity.log({
             companyId,
             entityType: "agent",

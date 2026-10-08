@@ -21,7 +21,6 @@ const manifest: PaperclipPluginManifestV1 = {
     "activity.log.write",
     "instance.settings.register",
     "ui.page.register",
-    "ui.sidebar.register",
   ],
   entrypoints: {
     worker: "./dist/worker.js",
@@ -29,11 +28,6 @@ const manifest: PaperclipPluginManifestV1 = {
   },
   ui: {
     slots: [{
-      type: "sidebar",
-      id: "agent-settings-link",
-      displayName: "Token Shift Agents",
-      exportName: "AgentSettingsLink",
-    }, {
       type: "companySettingsPage",
       id: "agent-selection",
       displayName: "Token Shift Agents",
