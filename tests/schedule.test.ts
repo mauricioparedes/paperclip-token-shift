@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseConfig, type TokenShiftConfig } from "../src/config.js";
+import { instanceConfigSchema, parseConfig, type TokenShiftConfig } from "../src/config.js";
 import { decide, type QuotaView } from "../src/schedule.js";
 import { fromLocal, nextLocalOccurrence, toLocalParts } from "../src/time.js";
 
@@ -102,6 +102,13 @@ describe("decide with /usage readings", () => {
     expect(decide(at("23:00"), night, usage(null)).reason).toBe("work_hours");
     expect(decide(at("03:00", 8), night, usage(null)).reason).toBe("work_hours");
     expect(decide(at("10:00"), night, usage(null)).run).toBe(true);
+  });
+});
+
+describe("instanceConfigSchema", () => {
+  it("uses the runtime-supported IANA timezones as selectable options", () => {
+    expect(instanceConfigSchema.properties.timezone.enum).toEqual(Intl.supportedValuesOf("timeZone"));
+    expect(instanceConfigSchema.properties.timezone.enum).toContain("America/Santiago");
   });
 });
 

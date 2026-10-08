@@ -1,5 +1,7 @@
 import { isValidTimeZone, parseHm, type Hm } from "./time.js";
 
+const timezones = Intl.supportedValuesOf("timeZone");
+
 export interface TokenShiftConfig {
   enabled: boolean;
   timezone: string;
@@ -19,7 +21,13 @@ export const instanceConfigSchema = {
   type: "object",
   properties: {
     enabled: { type: "boolean", default: false, title: "Enabled", description: "Master switch for this company." },
-    timezone: { type: "string", default: "America/Santiago", title: "Timezone (IANA)" },
+    timezone: {
+      type: "string",
+      default: "America/Santiago",
+      title: "Timezone (IANA)",
+      description: "Select the timezone used to evaluate work hours and quota resets.",
+      enum: timezones,
+    },
     workStart: { type: "string", default: "09:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Workday start (agents paused)" },
     workEnd: { type: "string", default: "20:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Workday end (agents may run)" },
     pauseLeadMinutes: { type: "integer", default: 10, minimum: 0, maximum: 120, title: "Stop this many minutes before a quota reset" },
