@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
-import { usePluginAction, usePluginData, type PluginCompanySettingsPageProps } from "@paperclipai/plugin-sdk/ui";
+import { useHostContext, useHostNavigation, usePluginAction, usePluginData, type PluginCompanySettingsPageProps } from "@paperclipai/plugin-sdk/ui";
 import type { AgentSelectionData } from "../agent-selection.js";
+
+export function AgentSettingsLink() {
+  const { companyId } = useHostContext();
+  const navigation = useHostNavigation();
+  if (!companyId) return null;
+  return <a {...navigation.linkProps("../../token-shift-agents")}>Token Shift Agents</a>;
+}
 
 export function AgentSelectionPage({ context }: PluginCompanySettingsPageProps) {
   if (!context.companyId) return <p>Select a company to choose its agents.</p>;

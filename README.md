@@ -60,7 +60,7 @@ The parser (`src/usage.ts`) looks for the `Current session` section and its `Res
 - `preview` (action): computes the decision and what it would do with each agent, without touching them.
 - `reconcile-now` (action): applies the decision now; with `refreshUsage: true` it re-reads `/usage`.
 
-Open **Company settings → Token Shift Agents** to search agents by name, check the agents to control, and click **Save agent selection**. Names are displayed but stable IDs are saved, so renaming an agent does not change the selection. Duplicate names show IDs to distinguish them. Terminated agents and agents awaiting approval cannot be added. Unavailable saved agents can be removed.
+Open **Token Shift Agents** from the company sidebar or **Company settings → Token Shift Agents** to search agents by name, check the agents to control, and click **Save agent selection**. The sidebar link opens the settings for the active company. Names are displayed but stable IDs are saved, so renaming an agent does not change the selection. Duplicate names show IDs to distinguish them. Terminated agents and agents awaiting approval cannot be added. Unavailable saved agents can be removed.
 
 The saved selection is scoped to the company. No agents are controlled until a selection is saved. Saving an empty selection controls no agents. Saving changes the selection for the next reconciliation; it does not immediately pause or resume agents. Other settings, including timezone and agent workday times, remain in Paperclip's generated plugin configuration form.
 

@@ -2,13 +2,13 @@ import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
 import { instanceConfigSchema } from "./config.js";
 
 const manifest: PaperclipPluginManifestV1 = {
-  id: "c2c.token-shift",
+  id: "mauricioparedes.token-shift",
   apiVersion: 1,
   version: "0.1.0",
   displayName: "Token Shift",
   description:
     "Runs selected agents during their configured workday, stopping before the Claude quota reset and preserving quota after their workday ends.",
-  author: "C2C",
+  author: "Mauricio Paredes",
   categories: ["automation"],
   capabilities: [
     "companies.read",
@@ -21,6 +21,7 @@ const manifest: PaperclipPluginManifestV1 = {
     "activity.log.write",
     "instance.settings.register",
     "ui.page.register",
+    "ui.sidebar.register",
   ],
   entrypoints: {
     worker: "./dist/worker.js",
@@ -28,6 +29,11 @@ const manifest: PaperclipPluginManifestV1 = {
   },
   ui: {
     slots: [{
+      type: "sidebar",
+      id: "agent-settings-link",
+      displayName: "Token Shift Agents",
+      exportName: "AgentSettingsLink",
+    }, {
       type: "companySettingsPage",
       id: "agent-selection",
       displayName: "Token Shift Agents",
