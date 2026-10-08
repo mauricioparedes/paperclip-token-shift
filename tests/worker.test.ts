@@ -65,7 +65,7 @@ async function setup(opts: { usage?: string | Error; config?: Record<string, unk
 }
 
 describe("token-shift worker", () => {
-  it("pauses during the workday and resumes only the agents it paused", async () => {
+  it("pauses outside agent work hours and resumes only the agents it paused", async () => {
     const t = await setup();
     t.setClock(10, 0);
     await t.harness.runJob("reconcile");
@@ -77,7 +77,7 @@ describe("token-shift worker", () => {
     expect(await t.status("a1")).toBe("idle");
     expect(await t.status("a3")).toBe("idle");
     expect(await t.status("a2")).toBe("paused"); // paused by the operator, left alone
-    expect(t.harness.activity.map((a) => a.message)).toContain("Token Shift resumed Agent a1: no window open; a new one would reset before the workday");
+    expect(t.harness.activity.map((a) => a.message)).toContain("Token Shift resumed Agent a1: no window open; a new one would reset by the end of the agents' workday");
   });
 
   it("does nothing when disabled", async () => {

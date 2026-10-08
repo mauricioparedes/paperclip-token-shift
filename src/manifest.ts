@@ -7,7 +7,7 @@ const manifest: PaperclipPluginManifestV1 = {
   version: "0.1.0",
   displayName: "Token Shift",
   description:
-    "Pauses selected agents during the workday and lets them run overnight, stopping before the Claude quota reset so the next workday starts with a fresh allowance.",
+    "Runs selected agents during their configured workday, stopping before the Claude quota reset and preserving quota after their workday ends.",
   author: "C2C",
   categories: ["automation"],
   capabilities: [
@@ -28,7 +28,7 @@ const manifest: PaperclipPluginManifestV1 = {
     {
       jobKey: "reconcile",
       displayName: "Reconcile agent schedule",
-      description: "Pauses or resumes the configured agents according to the workday and the Claude quota reset.",
+      description: "Pauses or resumes the configured agents according to their workday and the Claude quota reset.",
       schedule: "* * * * *",
     },
   ],

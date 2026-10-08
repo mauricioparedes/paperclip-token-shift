@@ -47,8 +47,8 @@ The plugin does not manage prompts or projects, nor create new agents. It only d
 | Field | Example | Purpose |
 |---|---|---|
 | `timezone` | `America/Santiago` | Evaluate all times in the correct zone, including DST |
-| `workStart` | `09:00` | Start of your workday; agents pause |
-| `workEnd` | `20:00` | End of the workday; the autonomous window begins |
+| `agentsWorkStart` | `20:00` | Start of the agents' workday; the autonomous window begins |
+| `agentsWorkEnd` | `09:00` | End of the agents' workday; agents pause |
 | `pauseLeadMinutes` | `10` | Avoids starting/running close to the cutoff |
 | `usagePollMinutes` | `15` | How often `/usage` is queried; not worth doing on every reconciliation |
 | `agentIds` | `["..."]` | Agents to control |
@@ -85,9 +85,9 @@ The worker applies a pure, testable function:
 ```text
 shouldRun(nowLocal, config):
   cutoff = resetAt - pauseLeadMinutes
-  if workStart <= now < workEnd:       false
-  if now >= cutoff or now < workStart: false
-  otherwise:                           true
+  if outside agentsWorkStart–agentsWorkEnd: false  # Interval may cross midnight.
+  if now >= cutoff:                       false  # Compare absolute instants.
+  otherwise:                               true
 ```
 
 For the 09:00/20:00 example with a 05:30 reset and a 10-minute margin, `shouldRun` only returns `true` between 20:00 and 05:20. It must also work when the window crosses midnight.

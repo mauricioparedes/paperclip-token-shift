@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { instanceConfigSchema, parseConfig, type TokenShiftConfig } from "../src/config.js";
-import { decide, type QuotaView } from "../src/schedule.js";
+import { decide, inAgentsWorkHours, type QuotaView } from "../src/schedule.js";
 import { fromLocal, nextLocalOccurrence, toLocalParts } from "../src/time.js";
 
 const TZ = "America/Santiago";
@@ -48,6 +48,29 @@ describe("time helpers", () => {
   });
 });
 
+describe("agent work hours", () => {
+  it.each([
+    ["19:59", false],
+    ["20:00", true],
+    ["23:59", true],
+    ["00:00", true],
+    ["08:59", true],
+    ["09:00", false],
+  ] as const)("includes %s in the overnight agent workday: %s", (time, expected) => {
+    expect(inAgentsWorkHours(at(time), config())).toBe(expected);
+  });
+
+  it.each([
+    ["05:59", false],
+    ["06:00", true],
+    ["21:59", true],
+    ["22:00", false],
+  ] as const)("includes %s in a daytime agent workday: %s", (time, expected) => {
+    const cfg = config({ agentsWorkStart: "06:00", agentsWorkEnd: "22:00" });
+    expect(inAgentsWorkHours(at(time), cfg)).toBe(expected);
+  });
+});
+
 describe("decide with a 05:30 fallback reset", () => {
   const cfg = config();
   const cases: Array<[string, number, boolean, string]> = [
@@ -72,7 +95,7 @@ describe("decide with /usage readings", () => {
   const cfg = config({ fallbackResetAt: "" });
   const usage = (reset: Date | null, weeklyExhausted = false): QuotaView => ({ source: "usage", sessionResetAt: reset, weeklyExhausted });
 
-  it("opens a fresh window at night when it would close before the workday", () => {
+  it("opens a fresh window when it would close by the end of the agents' workday", () => {
     expect(decide(at("22:00"), cfg, usage(null)).run).toBe(true);
     expect(decide(at("04:00", 8), cfg, usage(null)).run).toBe(true); // closes exactly at 09:00
   });
@@ -88,7 +111,7 @@ describe("decide with /usage readings", () => {
     expect(decide(at("00:50", 8), cfg, usage(reset))).toMatchObject({ run: false, reason: "reset_reserve" });
   });
 
-  it("keeps agents off a window that resets during the workday", () => {
+  it("keeps agents off a window that resets after their workday ends", () => {
     expect(decide(at("06:00", 8), cfg, usage(at("10:30", 8)))).toMatchObject({ run: false, reason: "window_overlaps_workday" });
   });
 
@@ -97,11 +120,13 @@ describe("decide with /usage readings", () => {
     expect(decide(at("22:00"), cfg, { source: "none", sessionResetAt: null, weeklyExhausted: false }).reason).toBe("quota_unknown");
   });
 
-  it("handles a workday that wraps midnight", () => {
-    const night = config({ workStart: "22:00", workEnd: "06:00", fallbackResetAt: "" });
-    expect(decide(at("23:00"), night, usage(null)).reason).toBe("work_hours");
-    expect(decide(at("03:00", 8), night, usage(null)).reason).toBe("work_hours");
-    expect(decide(at("10:00"), night, usage(null)).run).toBe(true);
+  it("handles a daytime agent workday", () => {
+    const daytime = config({ agentsWorkStart: "06:00", agentsWorkEnd: "22:00", fallbackResetAt: "" });
+    expect(decide(at("23:00"), daytime, usage(null)).reason).toBe("work_hours");
+    expect(decide(at("03:00", 8), daytime, usage(null)).reason).toBe("work_hours");
+    expect(decide(at("10:00"), daytime, usage(null)).run).toBe(true);
+    expect(decide(at("17:00"), daytime, usage(null)).run).toBe(true);
+    expect(decide(at("17:01"), daytime, usage(null)).reason).toBe("reset_reserve");
   });
 });
 
@@ -113,8 +138,43 @@ describe("instanceConfigSchema", () => {
 });
 
 describe("parseConfig", () => {
+  it("defaults to the agents' overnight workday", () => {
+    expect(parseConfig({})).toMatchObject({
+      ok: true,
+      config: { agentsWorkStart: { hour: 20, minute: 0 }, agentsWorkEnd: { hour: 9, minute: 0 } },
+    });
+  });
+
+  it("preserves saved operator workday settings with reversed agent boundaries", () => {
+    expect(parseConfig({ workStart: "08:30", workEnd: "19:15" })).toMatchObject({
+      ok: true,
+      config: { agentsWorkStart: { hour: 19, minute: 15 }, agentsWorkEnd: { hour: 8, minute: 30 } },
+    });
+  });
+
+  it("prefers agent workday settings over legacy keys", () => {
+    expect(parseConfig({ agentsWorkStart: "06:00", agentsWorkEnd: "22:00", workStart: "08:30", workEnd: "19:15" })).toMatchObject({
+      ok: true,
+      config: { agentsWorkStart: { hour: 6, minute: 0 }, agentsWorkEnd: { hour: 22, minute: 0 } },
+    });
+  });
+
+  it("rejects identical agent workday boundaries", () => {
+    expect(parseConfig({ agentsWorkStart: "06:00", agentsWorkEnd: "06:00" })).toEqual({
+      ok: false,
+      errors: ["agentsWorkEnd and agentsWorkStart must differ"],
+    });
+  });
+
+  it("reports invalid agent workday boundaries by their new names", () => {
+    expect(parseConfig({ agentsWorkStart: "25:00", agentsWorkEnd: "9am" })).toEqual({
+      ok: false,
+      errors: ["agentsWorkEnd must be HH:MM", "agentsWorkStart must be HH:MM"],
+    });
+  });
+
   it("rejects bad values", () => {
-    const r = parseConfig({ timezone: "Mars/Base", workStart: "9am", fallbackResetAt: "25:00" });
+    const r = parseConfig({ timezone: "Mars/Base", agentsWorkEnd: "9am", fallbackResetAt: "25:00" });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errors).toHaveLength(3);
   });

@@ -5,8 +5,8 @@ const timezones = Intl.supportedValuesOf("timeZone");
 export interface TokenShiftConfig {
   enabled: boolean;
   timezone: string;
-  workStart: Hm;
-  workEnd: Hm;
+  agentsWorkEnd: Hm;
+  agentsWorkStart: Hm;
   pauseLeadMinutes: number;
   sessionWindowHours: number;
   agentIds: string[];
@@ -25,11 +25,11 @@ export const instanceConfigSchema = {
       type: "string",
       default: "America/Santiago",
       title: "Timezone (IANA)",
-      description: "Select the timezone used to evaluate work hours and quota resets.",
+      description: "Select the timezone used to evaluate agent work hours and quota resets.",
       enum: timezones,
     },
-    workStart: { type: "string", default: "09:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Workday start (agents paused)" },
-    workEnd: { type: "string", default: "20:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Workday end (agents may run)" },
+    agentsWorkEnd: { type: "string", default: "09:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Agent Work Day End Time" },
+    agentsWorkStart: { type: "string", default: "20:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Agent Work Day Start Time" },
     pauseLeadMinutes: { type: "integer", default: 10, minimum: 0, maximum: 120, title: "Stop this many minutes before a quota reset" },
     sessionWindowHours: { type: "number", default: 5, minimum: 1, maximum: 24, title: "Claude session window length (hours)" },
     agentIds: { type: "array", items: { type: "string" }, default: [], title: "Agent IDs to control" },
@@ -51,12 +51,13 @@ export function parseConfig(raw: Record<string, unknown>): ConfigResult {
   const timezone = str("timezone", "America/Santiago");
   if (!isValidTimeZone(timezone)) errors.push(`timezone "${timezone}" is not a valid IANA zone`);
 
-  const workStart = parseHm(str("workStart", "09:00"));
-  const workEnd = parseHm(str("workEnd", "20:00"));
-  if (!workStart) errors.push("workStart must be HH:MM");
-  if (!workEnd) errors.push("workEnd must be HH:MM");
-  if (workStart && workEnd && workStart.hour * 60 + workStart.minute === workEnd.hour * 60 + workEnd.minute) {
-    errors.push("workStart and workEnd must differ");
+  // Preserve saved schedules using the former operator workday keys.
+  const agentsWorkEnd = parseHm(str("agentsWorkEnd", str("workStart", "09:00")));
+  const agentsWorkStart = parseHm(str("agentsWorkStart", str("workEnd", "20:00")));
+  if (!agentsWorkEnd) errors.push("agentsWorkEnd must be HH:MM");
+  if (!agentsWorkStart) errors.push("agentsWorkStart must be HH:MM");
+  if (agentsWorkEnd && agentsWorkStart && agentsWorkEnd.hour * 60 + agentsWorkEnd.minute === agentsWorkStart.hour * 60 + agentsWorkStart.minute) {
+    errors.push("agentsWorkEnd and agentsWorkStart must differ");
   }
 
   const fallbackRaw = str("fallbackResetAt", "");
@@ -73,8 +74,8 @@ export function parseConfig(raw: Record<string, unknown>): ConfigResult {
     config: {
       enabled: raw.enabled === true,
       timezone,
-      workStart: workStart!,
-      workEnd: workEnd!,
+      agentsWorkEnd: agentsWorkEnd!,
+      agentsWorkStart: agentsWorkStart!,
       pauseLeadMinutes: Math.max(0, num("pauseLeadMinutes", 10)),
       sessionWindowHours: Math.max(1, num("sessionWindowHours", 5)),
       agentIds,

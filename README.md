@@ -1,6 +1,6 @@
 # Token Shift — Paperclip plugin
 
-Implementation of `docs/research-paperclip-schedule-plugin.md`. It pauses the selected agents during your workday, lets them work overnight, and stops them before the Claude quota reset, so the next workday starts with a full quota.
+Implementation of `docs/research-paperclip-schedule-plugin.md`. It runs selected agents during their configured workday and stops them before the Claude quota reset, preserving quota after their workday ends. The default agent workday runs overnight from 20:00 to 09:00.
 
 No equivalent plugin existed: there is none on npm (the `@paperclipai/plugin-*` packages are sandboxes, wiki and diff) or in the Paperclip documentation. Outside Paperclip there is [`claude-overnight`](https://pypi.org/project/claude-overnight/), which queues prompts to run overnight but does not control Paperclip agents.
 
@@ -8,14 +8,14 @@ No equivalent plugin existed: there is none on npm (the `@paperclipai/plugin-*` 
 
 Evaluated every minute in the configured `timezone` (`src/schedule.ts`):
 
-1. Within `workStart`–`workEnd` → **pause** (`work_hours`).
+1. Outside `agentsWorkStart`–`agentsWorkEnd` → **pause** (`work_hours`). The start is inclusive and the end is exclusive; the interval may cross midnight.
 2. Weekly quota exhausted according to `/usage` → **pause** (`weekly_limit`).
 3. No valid `/usage` reading and no `fallbackResetAt` → **pause** (`quota_unknown`), i.e. it fails safe.
 4. If there is an open session window that resets at `resetAt`:
-   - if `resetAt` falls after the next `workStart` → **pause** (`window_overlaps_workday`);
+   - if `resetAt` falls after the next `agentsWorkEnd` → **pause** (`window_overlaps_workday`);
    - if less than `pauseLeadMinutes` remain → **pause** (`reset_reserve`);
    - otherwise → **run** (`night_window`).
-5. If there is no open window: run only if a new `sessionWindowHours` (5 h) window would close before the next `workStart`; otherwise **pause** (`reset_reserve`).
+5. If there is no open window: run only if a new `sessionWindowHours` (5 h) window would close before the next `agentsWorkEnd`; otherwise **pause** (`reset_reserve`).
 
 With a reset at 05:30 and a 10-minute margin: it runs from 20:00 to 05:20 and stays paused from 05:20 to 20:00, matching the table in the research document.
 
@@ -42,7 +42,8 @@ The parser (`src/usage.ts`) looks for the `Current session` section and its `Res
 |---|---|---|
 | `enabled` | `false` | Master switch |
 | `timezone` | `America/Santiago` | IANA zone; handles DST |
-| `workStart` / `workEnd` | `09:00` / `20:00` | Workday with agents paused (may cross midnight) |
+| `agentsWorkStart` | `20:00` | Agent Work Day Start Time; agents may run from this time |
+| `agentsWorkEnd` | `09:00` | Agent Work Day End Time; agents pause at this time |
 | `pauseLeadMinutes` | `10` | Margin before the reset |
 | `sessionWindowHours` | `5` | Length of the Claude session window |
 | `agentIds` | `[]` | Controlled agents |
@@ -60,12 +61,14 @@ The parser (`src/usage.ts`) looks for the `Current session` section and its `Res
 
 It does not have its own Settings page yet. Configuration is edited through the form Paperclip generates from `instanceConfigSchema`.
 
+Existing configurations remain readable: legacy `workStart` maps to `agentsWorkEnd`, and legacy `workEnd` maps to `agentsWorkStart`. Explicit new keys take precedence. Existing decision reason codes remain stable: `work_hours` now describes time outside the agents' workday, and `window_overlaps_workday` describes a quota window extending past `agentsWorkEnd`.
+
 ## Development
 
 ```bash
 pnpm install
 pnpm typecheck
-pnpm test        # 46 tests: time boundaries, Santiago DST, parser and worker with the SDK harness
+pnpm test        # Time boundaries, Santiago DST, parser and worker with the SDK harness
 pnpm build       # dist/manifest.js + dist/worker.js
 paperclipai plugin install "$(pwd)"
 paperclipai plugin inspect c2c.token-shift
