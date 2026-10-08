@@ -40,6 +40,7 @@ export function inAgentsWorkHours(now: Date, config: TokenShiftConfig): boolean 
  *
  * Agents only run within their configured work hours, while preserving quota
  * after the end of their workday:
+ * - with unknown quota, they run until the end of their workday;
  * - with a session window open, they run until `pauseLeadMinutes` before it
  *   resets, provided it resets by the end of the agents' workday;
  * - with no window open, they run only if a fresh window opened now would
@@ -53,7 +54,7 @@ export function decide(now: Date, config: TokenShiftConfig, quota: QuotaView): D
     return { run: false, reason: "weekly_limit", detail: "weekly allowance exhausted" };
   }
   if (quota.source === "none") {
-    return { run: false, reason: "quota_unknown", detail: "no usable /usage reading and no fallback reset time" };
+    return { run: true, reason: "quota_unknown", detail: "quota unavailable; running within the agents' workday" };
   }
 
   const nextAgentsWorkEnd = nextLocalOccurrence(now, config.timezone, config.agentsWorkEnd);

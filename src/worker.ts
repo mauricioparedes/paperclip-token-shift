@@ -287,7 +287,7 @@ export function buildPlugin(deps: WorkerDeps) {
       const parsed = parseConfig(config);
       if (!parsed.ok) return { ok: false, errors: parsed.errors };
       const warnings: string[] = [];
-      if (!parsed.config.fallbackResetAt) warnings.push("no fallbackResetAt: agents stay paused whenever /usage cannot be read");
+      if (!parsed.config.fallbackResetAt) warnings.push("no fallbackResetAt: agents follow their workday whenever /usage cannot be read");
       return { ok: true, warnings };
     },
   });

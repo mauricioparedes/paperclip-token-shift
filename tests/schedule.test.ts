@@ -115,9 +115,17 @@ describe("decide with /usage readings", () => {
     expect(decide(at("06:00", 8), cfg, usage(at("10:30", 8)))).toMatchObject({ run: false, reason: "window_overlaps_workday" });
   });
 
-  it("stops when the weekly allowance is gone or nothing is known", () => {
-    expect(decide(at("22:00"), cfg, usage(null, true)).reason).toBe("weekly_limit");
-    expect(decide(at("22:00"), cfg, { source: "none", sessionResetAt: null, weeklyExhausted: false }).reason).toBe("quota_unknown");
+  it("stops when the weekly allowance is known to be exhausted", () => {
+    expect(decide(at("22:00"), cfg, usage(null, true))).toMatchObject({ run: false, reason: "weekly_limit" });
+    expect(decide(at("22:00"), cfg, { source: "none", sessionResetAt: null, weeklyExhausted: true })).toMatchObject({ run: false, reason: "weekly_limit" });
+  });
+
+  it.each(["20:00", "22:00", "08:59"])("allows unknown quota at %s within the workday", (time) => {
+    expect(decide(at(time), cfg, { source: "none", sessionResetAt: null, weeklyExhausted: false })).toMatchObject({ run: true, reason: "quota_unknown" });
+  });
+
+  it.each(["19:59", "09:00"])("pauses with unknown quota at %s outside the workday", (time) => {
+    expect(decide(at(time), cfg, { source: "none", sessionResetAt: null, weeklyExhausted: false })).toMatchObject({ run: false, reason: "work_hours" });
   });
 
   it("handles a daytime agent workday", () => {

@@ -10,7 +10,7 @@ Evaluated every minute in the configured `timezone` (`src/schedule.ts`):
 
 1. Outside `agentsWorkStart`–`agentsWorkEnd` → **pause** (`work_hours`). The start is inclusive and the end is exclusive; the interval may cross midnight.
 2. Weekly quota exhausted according to `/usage` → **pause** (`weekly_limit`).
-3. No valid `/usage` reading and no `fallbackResetAt` → **pause** (`quota_unknown`), i.e. it fails safe.
+3. No valid `/usage` reading and no `fallbackResetAt` → **run** (`quota_unknown`) within the configured workday. Unknown quota does not block agents; they still pause at the end of their workday. Reset-based protections apply again when a usable reading or fallback is available.
 4. If there is an open session window that resets at `resetAt`:
    - if `resetAt` falls after the next `agentsWorkEnd` → **pause** (`window_overlaps_workday`);
    - if less than `pauseLeadMinutes` remain → **pause** (`reset_reserve`);

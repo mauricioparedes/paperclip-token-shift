@@ -169,12 +169,16 @@ describe("token-shift worker", () => {
     expect(t.harness.activity).toEqual([]);
   });
 
-  it("keeps selected paused agents paused when quota is unavailable", async () => {
-    const t = await setup({ agents: [agent("a1", "paused")], selectedIds: ["a1"], usage: new Error("usage unavailable") });
+  it.each([new Error("usage unavailable"), "Current session: 0% used"])("resumes selected agents with unavailable quota and pauses at workday end (%s)", async (usage) => {
+    const t = await setup({ agents: [agent("a1", "paused"), agent("a2", "paused")], selectedIds: ["a1"], usage });
+    await t.harness.runJob("reconcile");
+    expect(await t.status("a1")).toBe("idle");
+    expect(await t.status("a2")).toBe("paused");
+    const state = await t.harness.getData<{ lastDecision: { decision: { run: boolean; reason: string } } }>("status", { companyId: COMPANY });
+    expect(state.lastDecision.decision).toMatchObject({ run: true, reason: "quota_unknown" });
+    t.setClock(9, 0, 8);
     await t.harness.runJob("reconcile");
     expect(await t.status("a1")).toBe("paused");
-    const state = await t.harness.getData<{ lastDecision: { decision: { reason: string } } }>("status", { companyId: COMPANY });
-    expect(state.lastDecision.decision.reason).toBe("quota_unknown");
   });
 
   it("pauses outside agent work hours and resumes selected paused agents", async () => {
@@ -220,14 +224,14 @@ describe("token-shift worker", () => {
     expect(await t.status("a1")).toBe("paused");
   });
 
-  it("falls back to the configured reset time, then fails safe", async () => {
+  it("uses a fallback reset when configured and allows unknown quota otherwise", async () => {
     const withFallback = await setup({ usage: new Error("claude not found"), config: { fallbackResetAt: "05:30" } });
     await withFallback.harness.runJob("reconcile");
     expect(await withFallback.status("a1")).toBe("idle");
 
     const without = await setup({ usage: new Error("claude not found") });
     await without.harness.runJob("reconcile");
-    expect(await without.status("a1")).toBe("paused");
+    expect(await without.status("a1")).toBe("idle");
     const s = await without.harness.getData<{ usage: { lastError: string } }>("status", { companyId: COMPANY });
     expect(s.usage.lastError).toContain("claude not found");
   });
