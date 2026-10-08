@@ -1,0 +1,35 @@
+{
+  "name": "@c2c/token-shift",
+  "version": "0.1.0",
+  "description": "Paperclip plugin: pause agents during the workday, run them overnight, stop before the Claude quota reset.",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "paperclip",
+    "plugin",
+    "claude",
+    "quota",
+    "schedule"
+  ],
+  "paperclipPlugin": {
+    "manifest": "./dist/manifest.js",
+    "worker": "./dist/worker.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@paperclipai/plugin-sdk": "2026.1005.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3",
+    "esbuild": "^0.28.2",
+    "@types/node": "^26.6.4"
+  }
+}
