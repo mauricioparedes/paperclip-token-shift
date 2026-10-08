@@ -19,9 +19,20 @@ const manifest: PaperclipPluginManifestV1 = {
     "plugin.state.read",
     "plugin.state.write",
     "activity.log.write",
+    "ui.page.register",
   ],
   entrypoints: {
     worker: "./dist/worker.js",
+    ui: "./dist/ui",
+  },
+  ui: {
+    slots: [{
+      type: "companySettingsPage",
+      id: "agent-selection",
+      displayName: "Token Shift Agents",
+      exportName: "AgentSelectionPage",
+      routePath: "token-shift-agents",
+    }],
   },
   instanceConfigSchema,
   jobs: [

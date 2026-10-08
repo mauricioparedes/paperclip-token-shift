@@ -21,7 +21,7 @@ With a reset at 05:30 and a 10-minute margin: it runs from 20:00 to 05:20 and st
 
 ## Agent behavior
 
-- It only touches the configured `agentIds`. It never pauses every agent in a company.
+- It only touches the selected agents. It never pauses every agent in a company.
 - It only resumes agents that **it** paused (`managed` state per company). An agent you paused manually stays paused.
 - If you manually resume an agent paused by the plugin, the plugin stops treating it as its own. But if the rule says "pause", it will pause it again on the next minute: the schedule rule wins.
 - Pausing does not stop a run in progress. To guarantee the cutoff, set the agent's `timeoutSec` below `pauseLeadMinutes`.
@@ -46,7 +46,7 @@ The parser (`src/usage.ts`) looks for the `Current session` section and its `Res
 | `agentsWorkEnd` | `09:00` | Agent Work Day End Time; agents pause at this time |
 | `pauseLeadMinutes` | `10` | Margin before the reset |
 | `sessionWindowHours` | `5` | Length of the Claude session window |
-| `agentIds` | `[]` | Controlled agents |
+| `agentIds` | `[]` | Legacy fallback until a selection is saved in Token Shift Agents |
 | `fallbackResetAt` | empty | Fallback reset time if `/usage` fails |
 | `usagePollMinutes` | `15` | How often `/usage` is read |
 | `usageMaxAgeMinutes` | `60` | Maximum age of a valid reading |
@@ -56,10 +56,14 @@ The parser (`src/usage.ts`) looks for the `Current session` section and its `Res
 ## Data and actions for UI/CLI
 
 - `status` (data): last decision, `/usage` state and managed agents.
+- `agent-selection` (data): company agent names, roles, statuses and selected IDs.
+- `save-agent-selection` (action): validates and saves the selected IDs for the company.
 - `preview` (action): computes the decision and what it would do with each agent, without touching them.
 - `reconcile-now` (action): applies the decision now; with `refreshUsage: true` it re-reads `/usage`.
 
-It does not have its own Settings page yet. Configuration is edited through the form Paperclip generates from `instanceConfigSchema`.
+Open **Company settings → Token Shift Agents** to search agents by name, check the agents to control, and click **Save agent selection**. Names are displayed but stable IDs are saved, so renaming an agent does not change the selection. Duplicate names show IDs to distinguish them. Terminated agents and agents awaiting approval cannot be added. Unavailable saved agents can be removed.
+
+The saved selection is scoped to the company and takes precedence over `agentIds` in the generated plugin configuration form. Saving an empty selection controls no agents. Saving changes the selection for the next reconciliation; it does not immediately pause or resume agents. Other settings, including timezone and agent workday times, remain in Paperclip's generated plugin configuration form. The legacy `agentIds` field is under **Advanced options**.
 
 Existing configurations remain readable: legacy `workStart` maps to `agentsWorkEnd`, and legacy `workEnd` maps to `agentsWorkStart`. Explicit new keys take precedence. Existing decision reason codes remain stable: `work_hours` now describes time outside the agents' workday, and `window_overlaps_workday` describes a quota window extending past `agentsWorkEnd`.
 
@@ -69,7 +73,7 @@ Existing configurations remain readable: legacy `workStart` maps to `agentsWorkE
 pnpm install
 pnpm typecheck
 pnpm test        # Time boundaries, Santiago DST, parser and worker with the SDK harness
-pnpm build       # dist/manifest.js + dist/worker.js
+pnpm build       # dist/manifest.js + dist/worker.js + dist/ui/index.js
 paperclipai plugin install "$(pwd)"
 paperclipai plugin inspect c2c.token-shift
 ```

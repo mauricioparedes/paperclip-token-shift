@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import manifest from "../src/manifest.js";
 import { fromLocal } from "../src/time.js";
 import { buildPlugin } from "../src/worker.js";
+import type { AgentSelectionData } from "../src/agent-selection.js";
 
 const TZ = "America/Santiago";
 const COMPANY = "co_1";
@@ -65,6 +66,85 @@ async function setup(opts: { usage?: string | Error; config?: Record<string, unk
 }
 
 describe("token-shift worker", () => {
+  it("lists agents by name and preserves the configured selection initially", async () => {
+    const t = await setup({ agents: [
+      { ...agent("a1", "idle"), name: "Zoe" },
+      { ...agent("a2", "paused"), name: "Alice" },
+      { ...agent("foreign", "idle"), companyId: "co_2" },
+    ] });
+    const data = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: COMPANY });
+    expect(data.companyId).toBe(COMPANY);
+    expect(data.agents.map((a) => [a.id, a.name])).toEqual([["a2", "Alice"], ["a1", "Zoe"]]);
+    expect(data.agentIds).toEqual(["a1", "a2", "a3"]);
+    expect(data.source).toBe("config");
+  });
+
+  it("paginates agent options beyond the first hundred", async () => {
+    const t = await setup({ agents: Array.from({ length: 105 }, (_, index) => agent(`agent-${index}`, "idle")) });
+    const data = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: COMPANY });
+    expect(data.agents).toHaveLength(105);
+    expect(data.agents.map((a) => a.id)).toContain("agent-104");
+  });
+
+  it("uses saved IDs instead of names and configured IDs when reconciling", async () => {
+    const t = await setup({ agents: [
+      { ...agent("a1", "idle"), name: "Same name" },
+      { ...agent("a3", "idle"), name: "Same name" },
+    ] });
+    await t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds: [" a3 ", "a3"] });
+    t.setClock(10, 0);
+    await t.harness.runJob("reconcile");
+    expect(await t.status("a1")).toBe("idle");
+    expect(await t.status("a3")).toBe("paused");
+    t.harness.seed({ agents: [{ ...agent("a3", "paused"), name: "Renamed agent" }] });
+    t.setClock(21, 0);
+    await t.harness.runJob("reconcile");
+    expect(await t.status("a3")).toBe("idle");
+    const data = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: COMPANY });
+    expect(data.agentIds).toEqual(["a3"]);
+    expect(data.source).toBe("selection");
+  });
+
+  it("honors an explicitly empty selection instead of falling back to configured IDs", async () => {
+    const t = await setup();
+    await t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds: [] });
+    t.setClock(10, 0);
+    await t.harness.runJob("reconcile");
+    expect(await t.status("a1")).toBe("idle");
+    expect(await t.status("a3")).toBe("running");
+    expect((await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: COMPANY })).agentIds).toEqual([]);
+  });
+
+  it("isolates selections by company", async () => {
+    const t = await setup();
+    await t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds: [] });
+    const other = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: "co_2" });
+    expect(other.source).toBe("config");
+    expect(other.agents).toEqual([]);
+  });
+
+  it("rejects foreign, missing, terminated and pending approval agents without saving", async () => {
+    const t = await setup({ agents: [
+      agent("a1", "idle"), agent("terminated", "terminated"), agent("pending", "pending_approval"),
+      { ...agent("foreign", "idle"), companyId: "co_2" },
+    ] });
+    for (const id of ["foreign", "missing", "terminated", "pending"]) {
+      await expect(t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds: [id] })).rejects.toThrow("unavailable agent");
+    }
+    const data = await t.harness.getData<AgentSelectionData>("agent-selection", { companyId: COMPANY });
+    expect(data.source).toBe("config");
+    expect(data.agents.filter((a) => !a.selectable).map((a) => a.id).sort()).toEqual(["pending", "terminated"]);
+  });
+
+  it("rejects malformed selections and missing company IDs", async () => {
+    const t = await setup();
+    for (const agentIds of [null, "a1", [42], [""]]) {
+      await expect(t.harness.performAction("save-agent-selection", { companyId: COMPANY, agentIds })).rejects.toThrow("array of non-empty strings");
+    }
+    await expect(t.harness.getData("agent-selection", {})).rejects.toThrow("companyId is required");
+    await expect(t.harness.performAction("save-agent-selection", { agentIds: [] })).rejects.toThrow("companyId is required");
+  });
+
   it("pauses outside agent work hours and resumes only the agents it paused", async () => {
     const t = await setup();
     t.setClock(10, 0);

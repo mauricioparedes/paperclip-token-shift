@@ -32,7 +32,11 @@ export const instanceConfigSchema = {
     agentsWorkStart: { type: "string", default: "20:00", pattern: "^\\d{1,2}:\\d{2}$", title: "Agent Work Day Start Time" },
     pauseLeadMinutes: { type: "integer", default: 10, minimum: 0, maximum: 120, title: "Stop this many minutes before a quota reset" },
     sessionWindowHours: { type: "number", default: 5, minimum: 1, maximum: 24, title: "Claude session window length (hours)" },
-    agentIds: { type: "array", items: { type: "string" }, default: [], title: "Agent IDs to control" },
+    agentIds: {
+      type: "array", items: { type: "string" }, default: [], title: "Agent IDs (legacy configuration)",
+      description: "Select agents by name in company settings > Token Shift Agents. These IDs are used until a selection is saved there.",
+      "x-paperclip-advanced": true,
+    },
     fallbackResetAt: { type: "string", default: "", pattern: "^(\\d{1,2}:\\d{2})?$", title: "Fallback reset time when /usage is unavailable (HH:MM, empty = none)" },
     usagePollMinutes: { type: "integer", default: 15, minimum: 5, maximum: 240, title: "Minutes between /usage reads" },
     usageMaxAgeMinutes: { type: "integer", default: 60, minimum: 10, maximum: 720, title: "Treat a /usage reading as stale after (minutes)" },
